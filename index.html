@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Winget Converter & Review Tool</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        textarea {
+            resize: none;
+            font-family: monospace;
+        }
+        .card {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        /* --- Review Carousel Styles --- */
+        .review-card {
+            flex: 0 0 auto;
+            width: 90%;
+            scroll-snap-align: start;
+        }
+        .carousel-container::-webkit-scrollbar { display: none; }
+        .carousel-container { -ms-overflow-style: none; scrollbar-width: none; scroll-behavior: smooth; }
+
+        @media (min-width: 640px) { .review-card { width: 45%; } }
+        /* Mengatur agar 4.5 card terlihat di desktop */
+        @media (min-width: 1024px) { .review-card { width: calc(100% / 5 - 0.8rem); } }
+
+        .nav-arrow {
+            display: flex; align-items: center; justify-content: center;
+            width: 40px; height: 40px; cursor: pointer; transition: opacity 0.3s;
+            position: absolute; top: 50%; transform: translateY(-50%); z-index: 10;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 flex flex-col items-center min-h-screen">
+
+    <div class="w-full max-w-7xl">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-extrabold text-gray-800 tracking-tight">
+                Winget Converter & Review Tool
+            </h1>
+        </header>
+
+        <!-- === SECTION 1: WINGET CONVERTER (Input/Output 1) === -->
+        <h2 class="text-2xl font-bold text-gray-700 mb-4 border-b pb-2">1. Winget JSON Converter (JSON/CSV)</h2>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
+
+            <!-- INPUT CARD -->
+            <div class="card bg-white p-6 rounded-xl border border-gray-200">
+                <h3 class="text-xl font-bold text-gray-700 mb-4">Data Sumber</h3>
+
+                <!-- Input Format Selector -->
+                <div class="mb-4 flex space-x-4 p-2 bg-gray-100 rounded-lg">
+                    <button id="mode-json" onclick="setMode('json')"
+                            class="flex-1 py-2 rounded-lg text-sm font-semibold transition-all duration-200 bg-indigo-600 text-white">
+                        Input JSON
+                    </button>
+                    <button id="mode-csv" onclick="setMode('csv')"
+                            class="flex-1 py-2 rounded-lg text-sm font-semibold transition-all duration-200 text-gray-700 hover:bg-white">
+                        Input CSV
+                    </button>
+                </div>
+
+                <!-- Guidance / Placeholder -->
+                <p id="guidance-text" class="text-sm text-indigo-500 mb-2 h-10 transition-opacity duration-300">
+                    Masukkan array JSON. (Secara default menggunakan data ulasan di bawah, memetakan 'author' ke 'PackageIdentifier').
+                </p>
+
+                <!-- Input Textarea -->
+                <textarea id="input-data" rows="12" placeholder='Masukkan data Anda di sini...' oninput="debounceConvert()"
+                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-gray-50"></textarea>
+
+                <!-- Convert Button - Now acts as Manual Trigger/Format -->
+                <button onclick="convertData()"
+                    class="mt-4 w-full bg-yellow-500 text-white font-bold py-3 rounded-lg hover:bg-yellow-600 transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-yellow-300">
+                    <svg class="inline w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    FORMAT & VALIDASI MANUAL
+                </button>
+            </div>
+
+            <!-- OUTPUT CARD (Winget JSON) -->
+            <div class="card bg-white p-6 rounded-xl border border-gray-200">
+                <h3 class="text-xl font-bold text-gray-700 mb-4">Hasil Winget JSON (Live Preview)</h3>
+
+                <!-- Output Textarea -->
+                <textarea id="output-data" rows="12" readonly placeholder='JSON hasil konversi akan muncul di sini...'
+                    class="w-full p-3 border border-gray-300 rounded-lg text-sm bg-gray-50 text-gray-700"></textarea>
+
+                <!-- Error/Message Box -->
+                <div id="message-box" class="mt-4 p-3 rounded-lg hidden" role="alert"></div>
+
+                <!-- Download Button -->
+                <button onclick="downloadJson()"
+                    class="mt-4 w-full bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-indigo-300 disabled:opacity-50"
+                    id="download-button" disabled>
+                    <svg class="inline w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    UNDUH FILE apps.json
+                </button>
+            </div>
+        </div>
+
+        <!-- === SECTION 3: EMBED CODE OUTPUT (New Feature) === -->
+        <div class="card bg-white p-6 rounded-xl border border-gray-200 mb-12">
+            <h3 class="text-xl font-bold text-gray-700 mb-4">3. Kode Sumber Embed Ulasan (HTML/JS)</h3>
+            <p class="text-sm text-gray-500 mb-2">Salin seluruh kode di bawah ini dan tempel di dalam tag `<body>` website Anda. Kode ini sudah menyertakan data ulasan Anda secara langsung dan membutuhkan Tailwind CSS.</p>
+
+            <textarea id="embed-output-data" rows="15" readonly placeholder='Kode HTML/JavaScript siap tempel akan muncul di sini saat mode JSON aktif...'
+                class="w-full p-3 border border-gray-300 rounded-lg text-sm bg-gray-50 text-gray-700 font-mono"></textarea>
+            
+            <button onclick="copyEmbedCode()"
+                class="mt-4 w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-green-300 disabled:opacity-50"
+                id="copy-embed-button" disabled>
+                <svg class="inline w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5h4m-4 0V3m4 2V3m0 0h3a2 2 0 012 2v7.586a1 1 0 01.293.707l1.707 1.707A2 2 0 0121 17V7a2 2 0 00-2-2h-3"></path></svg>
+                SALIN KODE HTML/JS
+            </button>
+        </div>
+
+
+        <!-- === SECTION 2: REVIEW CAROUSEL (Live Preview) === -->
+        <h2 class="text-2xl font-bold text-gray-700 mb-6 border-b pb-2">2. Tampilan Review Carousel (Data Dinamis)</h2>
+
+        <div class="relative">
+            <!-- Left Arrow -->
+            <button id="prev-btn" class="nav-arrow left-0 bg-white/70 hover:bg-white text-gray-700 rounded-full shadow-lg ml-2 border border-gray-200">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+            </button>
+
+            <!-- Carousel Items -->
+            <div id="carousel-container" class="carousel-container flex overflow-x-scroll snap-x snap-mandatory space-x-4 p-4">
+                <p id="carousel-placeholder" class="text-gray-500 p-4">Masukkan data ulasan dalam format JSON di atas untuk melihat pratinjau di sini.</p>
+            </div>
+
+            <!-- Right Arrow -->
+            <button id="next-btn" class="nav-arrow right-0 bg-white/70 hover:bg-white text-gray-700 rounded-full shadow-lg mr-2 border border-gray-200">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            </button>
+            
+            <!-- Dots Indicator -->
+            <div id="dots-container" class="flex justify-center space-x-2 mt-4">
+                <!-- Dots will be inserted here by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA DEFAULT (Hanya untuk Inisialisasi) ---
+        // Data ulasan yang akan digunakan sebagai nilai awal input
+        const defaultReviewData = [
+            { "author": "Fitri Aryanti", "is_verified": true, "rating_stars": 5, "time_posted": "3 months ago", "review_text_truncated": "Pelayanan servicenya sangat baik, mudah dipahami buat aku yg awam. bergaransi, buat warga Cimahi dan sekitarnya, ga usah...", "review_text_full": "Pelayanan servicenya sangat baik, mudah dipahami buat aku yg awam. bergaransi, buat warga Cimahi dan sekitarnya, ga usah ragu deh service disini meskipun tempatnya nyempil pelayanannya toooop 👍👍👍", "profile_url": "...", "profile_image": "https://lh3.googleusercontent.com/a-/ALV-UjXKT2TUCgNmj48oDAaK-SMumrKgNVfxCjKNcN7QYpsS-AFIKsgK=s36-c-rp-mo-br100" },
+            { "author": "Sherli Sherli", "is_verified": true, "rating_stars": 5, "time_posted": "5 months ago", "review_text_truncated": "service ok pelayanan ramah 👍", "review_text_full": "service ok pelayanan ramah 👍", "profile_url": "...", "profile_image": "https://lh3.googleusercontent.com/a/ACg8ocIzb_vqWXOw54WoJpL7rqvAcXMH6HuRVioKhSkzErKpHhT6Ag=s36-c-rp-mo-br100" },
+            { "author": "widodo waluyo", "is_verified": true, "rating_stars": 5, "time_posted": "7 months ago", "review_text_truncated": "Yess", "review_text_full": "Yess", "profile_url": "...", "profile_image": "https://lh3.googleusercontent.com/a-/ALV-UjWLu5QAIT6JMErdAq62LuT0g26DyU_xcwmvhhuylsQnVKMrmMD7=s36-c-rp-mo-br100" },
+            { "author": "Faiz Titel", "is_verified": true, "rating_stars": 5, "time_posted": "1 year ago", "review_text_truncated": "hasilnya memuaskan", "review_text_full": "hasilnya memuaskan", "profile_url": "...", "profile_image": "https://lh3.googleusercontent.com/a/ACg8ocLu3OMK9oho-kvH-HiwXH-v0EIZD9QybIRPnT7KY9PmxY9dYQ=s36-c-rp-mo-br100" },
+            { "author": "yul suryana", "is_verified": true, "rating_stars": 5, "time_posted": "1 year ago", "review_text_truncated": "Left a 5-star rating. Excellent!", "review_text_full": "Left a 5-star rating. Excellent!", "profile_url": "...", "profile_image": "https://lh3.googleusercontent.com/a/ACg8ocKw5Jt2Mh7V-P_6rJp4X-L2Qx8D8Y6gZtI3F7Hk9X71G_c=s36-c-rp-mo-br100" },
+            { "author": "Sefto Sha", "is_verified": true, "rating_stars": 5, "time_posted": "3 weeks ago", "review_text_truncated": "Tidak ada teks ulasan.", "review_text_full": "Tidak ada teks ulasan.", "profile_url": "...", "profile_image": "https://lh3.googleusercontent.com/a/ACg8ocJh6t4Qq5NbApwZWs5lrwdfvQDSh01sMP5GD0xCheCbWVZMCQ=s36-c-rp-mo-br100" }
+        ];
+
+
+        let currentMode = 'json';
+        let debounceTimer;
+
+        // Palet warna Google-inspired untuk inisial (G/B/Y/R)
+        const initialColors = ['#4285F4', '#DB4437', '#F4B400', '#0F9D58']; 
+        
+        // Helper function untuk mengganti gambar yang gagal dengan inisial
+        function handleImageError(imgElement, bgColor, initial) {
+            imgElement.onerror = null; // Mencegah loop tak terbatas
+            // Mengganti tag <img> dengan tag <span> yang berisi inisial
+            imgElement.outerHTML = `<span style="background-color:${bgColor}; color:#FFFFFF;" class="flex items-center justify-center w-8 h-8 rounded-full font-semibold text-sm">${initial}</span>`;
+        }
+
+
+        // --- CONVERTER LOGIC ---
+
+        function debounceConvert() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(convertData, 500);
+        }
+
+        function showMessage(message, type = 'error') {
+            const box = document.getElementById('message-box');
+            box.textContent = message;
+            box.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-green-100', 'text-green-700', 'bg-yellow-100', 'text-yellow-700');
+
+            if (type === 'error') {
+                box.classList.add('bg-red-100', 'text-red-700');
+            } else if (type === 'success') {
+                box.classList.add('bg-green-100', 'text-green-700');
+            } else if (type === 'info') {
+                 box.classList.add('bg-yellow-100', 'text-yellow-700');
+            }
+            if (message.includes('Live Preview')) {
+                box.classList.add('bg-yellow-100', 'text-yellow-700');
+            } else {
+                setTimeout(() => box.classList.add('hidden'), 5000);
+            }
+            box.classList.remove('hidden');
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            const btnJson = document.getElementById('mode-json');
+            const btnCsv = document.getElementById('mode-csv');
+            const guidanceText = document.getElementById('guidance-text');
+            const inputData = document.getElementById('input-data');
+            
+            // Output Embed Code hanya relevan untuk JSON
+            document.getElementById('embed-output-data').value = '';
+            document.getElementById('copy-embed-button').disabled = true;
+
+
+            btnJson.classList.remove('bg-indigo-600', 'text-white', 'hover:bg-white', 'text-gray-700');
+            btnCsv.classList.remove('bg-indigo-600', 'text-white', 'hover:bg-white', 'text-gray-700');
+
+            if (mode === 'json') {
+                btnJson.classList.add('bg-indigo-600', 'text-white');
+                btnCsv.classList.add('text-gray-700', 'hover:bg-white');
+                guidanceText.innerHTML = 'Masukkan array JSON. Kami akan memetakan properti <code class="font-mono text-xs p-0.5 bg-gray-200 rounded">"author"</code> ke <code class="font-mono text-xs p-0.5 bg-gray-200 rounded">"PackageIdentifier"</code>.';
+                // Set default input menggunakan data ulasan
+                inputData.value = JSON.stringify(defaultReviewData, null, 4); 
+            } else {
+                btnCsv.classList.add('bg-indigo-600', 'text-white');
+                btnJson.classList.add('text-gray-700', 'hover:bg-white');
+                guidanceText.innerHTML = 'Masukkan data CSV dengan header: <code class="font-mono text-xs p-0.5 bg-gray-200 rounded">id,version,source</code> (pisahkan dengan baris baru).';
+                inputData.value = `id,version,source
+Discord.Discord,,
+OBSStudio.OBSStudio,30.1.2,
+Microsoft.WindowsTerminal,,msstore`;
+            }
+            document.getElementById('output-data').value = '';
+            document.getElementById('download-button').disabled = true;
+            convertData();
+        }
+
+        function csvToJson(csv) {
+            const lines = csv.trim().split('\n');
+            if (lines.length < 1) return [];
+
+            const result = [];
+            for (let i = 1; i < lines.length; i++) {
+                if (lines[i].trim() === '') continue;
+                const values = lines[i].split(',');
+                const obj = {};
+                
+                if (values[0] && values[0].trim() !== '') {
+                    obj['id'] = values[0].trim();
+                    if (values[1] !== undefined) obj['version'] = values[1].trim(); else obj['version'] = "";
+                    if (values[2] !== undefined) obj['source'] = values[2].trim(); else obj['source'] = "";
+                    result.push(obj);
+                }
+            }
+            return result;
+        }
+
+        function convertData() {
+            const inputData = document.getElementById('input-data').value;
+            const outputTextarea = document.getElementById('output-data');
+            outputTextarea.value = '';
+            document.getElementById('download-button').disabled = true;
+            document.getElementById('message-box').classList.add('hidden');
+            
+            document.getElementById('embed-output-data').value = '';
+            document.getElementById('copy-embed-button').disabled = true;
+
+
+            // Hapus ulasan dari carousel sementara
+            renderReviews([]); 
+
+            if (inputData.trim() === '') {
+                 showMessage('Live Preview: Menunggu input data...', 'info');
+                 return;
+            }
+
+            let sourceArray = [];
+            let parsedReviewData = []; // Data ulasan yang diparse
+
+            try {
+                if (currentMode === 'json') {
+                    parsedReviewData = JSON.parse(inputData);
+                    if (!Array.isArray(parsedReviewData)) {
+                        showMessage('Input JSON harus berupa Array (daftar objek).', 'error');
+                        return;
+                    }
+
+                    // Pemicu rendering ulasan dinamis (Section 2)
+                    renderReviews(parsedReviewData); 
+                    
+                    // Pemicu pembuatan Embed Code (Section 3)
+                    const embedCode = generateEmbedCode(parsedReviewData);
+                    document.getElementById('embed-output-data').value = embedCode;
+                    document.getElementById('copy-embed-button').disabled = false;
+
+
+                    // Lanjutkan proses konversi Winget (Section 1 - Output 1)
+                    const wingetPackages = parsedReviewData.map(item => {
+                        let packageId = item.id || item.PackageIdentifier || item.author;
+
+                        if (!packageId || packageId.trim() === '') {
+                            return null;
+                        }
+
+                        const pkg = {
+                            "PackageIdentifier": packageId.trim().replace(/\s/g, '.') // Mengganti spasi dengan titik
+                        };
+                        
+                        // Versi dan Source tidak relevan untuk data ulasan, tapi tetap dipertahankan
+                        if (item.version && item.version.trim() !== '') {
+                            pkg.Version = item.version.trim();
+                        }
+                        if (item.source && item.source.trim() !== '' && item.source.trim().toLowerCase() !== 'winget') {
+                            pkg.Source = item.source.trim();
+                        }
+                        return pkg;
+                    }).filter(pkg => pkg !== null);
+
+                    if (wingetPackages.length === 0) {
+                        showMessage('Live Preview: Tidak ada paket yang valid terdeteksi untuk konversi Winget.', 'info');
+                        return;
+                    }
+                    sourceArray = wingetPackages;
+
+                } else if (currentMode === 'csv') {
+                    // Dalam mode CSV, tidak ada data ulasan untuk ditampilkan
+                    sourceArray = csvToJson(inputData).map(item => ({
+                        "PackageIdentifier": item.id,
+                        "Version": item.version,
+                        "Source": item.source
+                    }));
+                }
+
+                if (sourceArray.length === 0 && currentMode !== 'json') {
+                    showMessage('Live Preview: Tidak ada paket yang terdeteksi dari data input.', 'info');
+                    return;
+                }
+                
+                // Pembentukan Struktur JSON Winget
+                if (currentMode === 'json' || sourceArray.length > 0) {
+                    const wingetJson = {
+                        "$schema": "https://aka.ms/winget-packages.schema.2.0.json",
+                        "CreationDate": new Date().toISOString(),
+                        "Sources": [
+                            {
+                                "Packages": sourceArray,
+                                "SourceDetails": {
+                                    "Name": "winget",
+                                    "Argument": "https://winget.azureedge.net/cache"
+                                }
+                            }
+                        ]
+                    };
+
+                    const resultString = JSON.stringify(wingetJson, null, 4);
+                    outputTextarea.value = resultString;
+                    document.getElementById('download-button').disabled = false;
+                    showMessage(`Live Preview: ${sourceArray.length} paket berhasil dikonversi.`, 'info');
+                }
+
+
+            } catch (error) {
+                outputTextarea.value = '';
+                document.getElementById('download-button').disabled = true;
+                document.getElementById('embed-output-data').value = '';
+                document.getElementById('copy-embed-button').disabled = true;
+                showMessage(`Live Preview GAGAL: Pastikan format input ${currentMode.toUpperCase()} Anda benar. Detail: ${error.message}`, 'error');
+            }
+        }
+
+        function downloadJson() {
+            const data = document.getElementById('output-data').value;
+            if (!data) {
+                showMessage('Tidak ada data JSON untuk diunduh.', 'error');
+                return;
+            }
+
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'apps.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showMessage('File apps.json berhasil dibuat dan siap diunduh.', 'success');
+        }
+
+        function copyEmbedCode() {
+            const embedCode = document.getElementById('embed-output-data').value;
+            if (!embedCode) {
+                showMessage('Tidak ada kode embed untuk disalin.', 'error');
+                return;
+            }
+            // Menggunakan execCommand sebagai fallback untuk iFrame/Clipboard API restriction
+            const textarea = document.createElement('textarea');
+            textarea.value = embedCode;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+
+            showMessage('Kode HTML/JS berhasil disalin ke clipboard!', 'success');
+        }
+
+        // --- GENERATE EMBED CODE LOGIC ---
+
+        function generateEmbedCode(reviewData) {
+            if (!reviewData || reviewData.length === 0) {
+                return "Data ulasan kosong. Tidak dapat membuat kode embed.";
+            }
+            
+            const reviewDataJsonString = JSON.stringify(reviewData, null, 4);
+            const solidStarPathEmbed = 'M12 2.163l3.328 6.772 7.456 1.082-5.394 5.263 1.278 7.447L12 18.017l-6.668 3.511 1.278-7.447L1.216 9.947l7.456-1.082L12 2.163z'; // Bentuk bintang baru
+
+            // Mendefinisikan ulang helper function yang dibutuhkan dalam embed code
+            const embedHelperFunctions = `
+    const initialColors = ['#4285F4', '#DB4437', '#F4B400', '#0F9D58']; 
+    const solidStarPath = '${solidStarPathEmbed}';
+
+    function handleImageError(imgElement, bgColor, initial) {
+        imgElement.onerror = null; 
+        imgElement.outerHTML = '<span style="background-color:' + bgColor + '; color:#FFFFFF; display:flex; align-items:center; justify-content:center;" class="w-8 h-8 rounded-full font-semibold text-sm">' + initial + '</span>';
+    }
+
+    function getInitialStyle(author) {
+        const initial = author.trim().toUpperCase().charAt(0);
+        const charCode = initial.charCodeAt(0);
+        const colorIndex = charCode % initialColors.length; 
+        const bgColor = initialColors[colorIndex];
+        return { initial: initial, bgColor: bgColor };
+    }
+
+    function renderStars(rating) {
+        let stars = '';
+        for (let i = 0; i < 5; i++) {
+            if (i < rating) {
+                stars += '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-yellow-500 fill-current" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="' + solidStarPath + '" clip-rule="evenodd" /></svg>';
+            }
+        }
+        return stars;
+    }
+            `;
+
+            // Perhatian: Konten di bawah ini adalah STRING JAVASCRIPT / HTML yang akan menjadi output (Embed Code)
+            const embedHtml = `
+<!-- Review Carousel Embed Code Start -->
+<section id="review-carousel-embed-container" style="padding: 40px 0; background-color: #f9fafb;">
+    <div style="max-width: 1280px; margin: 0 auto; padding: 0 1rem;">
+        <h2 style="font-size: 1.875rem; font-weight: 700; color: #374151; margin-bottom: 2rem; text-align: center;">Ulasan Pelanggan Kami</h2>
+        
+        <div class="relative">
+            <!-- Arrows -->
+            <button id="prev-btn-embed" class="nav-arrow" style="left: 0; background-color: rgba(255, 255, 255, 0.9); color: #4b5563; border-radius: 9999px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06); margin-left: 0.5rem; border: 1px solid #d1d5db; transition: all 0.3s; position: absolute; top: 50%; transform: translateY(-50%); z-index: 10; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; opacity: 0;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7"/></svg>
+            </button>
+            <button id="next-btn-embed" class="nav-arrow" style="right: 0; background-color: rgba(255, 255, 255, 0.9); color: #4b5563; border-radius: 9999px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06); margin-right: 0.5rem; border: 1px solid #d1d5db; transition: all 0.3s; position: absolute; top: 50%; transform: translateY(-50%); z-index: 10; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; opacity: 0;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+            </button>
+
+            <!-- Carousel Items Container -->
+            <div id="carousel-container-embed" style="display: flex; overflow-x: scroll; scroll-snap-type: x mandatory; margin: 1rem 0; padding: 1rem 0 2rem 0; gap: 1rem; scroll-behavior: smooth;">
+                <!-- Review Cards will be inserted here by JavaScript -->
+            </div>
+
+            <!-- Dots Indicator -->
+            <div id="dots-container-embed" style="display: flex; justify-content: center; gap: 0.5rem; margin-top: 1rem;">
+                <!-- Dots will be inserted here by JavaScript -->
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+    // Pastikan Tailwind CSS dimuat jika belum ada di website utama
+    if (typeof tailwind === 'undefined' && !document.querySelector('link[href*="tailwind"]')) {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.tailwindcss.com';
+        document.head.appendChild(script);
+    }
+    
+    // Data Ulasan Dinamis
+    const embedReviewData = ${reviewDataJsonString};
+
+    // --- HELPER FUNCTIONS FOR EMBED ---
+    ${embedHelperFunctions}
+
+    function renderReviewsEmbed() {
+        const container = document.getElementById('carousel-container-embed');
+        const prevBtn = document.getElementById('prev-btn-embed');
+        const nextBtn = document.getElementById('next-btn-embed');
+        const dotsContainer = document.getElementById('dots-container-embed');
+
+        if (!container || !embedReviewData || embedReviewData.length === 0) {
+             if(container) container.innerHTML = '<p style="color:#6b7280; padding:1rem;">Tidak ada data ulasan untuk ditampilkan.</p>';
+             return;
+        }
+        
+        container.innerHTML = '';
+        dotsContainer.innerHTML = '';
+
+        embedReviewData.forEach(review => {
+            const initialStyle = getInitialStyle(review.author || 'User');
+            
+            const card = document.createElement('div');
+            // Gunakan inline style responsif
+            card.style.cssText = "background-color: #ffffff; padding: 1.25rem; border-radius: 0.75rem; border: 1px solid #e5e7eb; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06); flex: 0 0 auto; width: 90%; scroll-snap-align: start; display: flex; flex-direction: column; justify-content: space-between; transition: box-shadow 0.3s;";
+            
+            // Responsif
+            const mediaQuerySm = window.matchMedia('(min-width: 640px)');
+            const mediaQueryLg = window.matchMedia('(min-width: 1024px)');
+
+            if (mediaQueryLg.matches) {
+                 card.style.width = 'calc(100% / 5 - 0.8rem)';
+            } else if (mediaQuerySm.matches) {
+                 card.style.width = '45%';
+            }
+
+            const truncatedText = review.review_text_truncated || review.review_text_full || 'Tidak ada teks ulasan.';
+            const fullText = review.review_text_full || truncatedText;
+            const rating = review.rating_stars || 5;
+
+            const googleIcon = \`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="width: 1rem; height: 1rem; margin-right: 0.25rem;">
+                                <path fill="#4285F4" d="M22.84 10.18c0-.62-.05-1.22-.16-1.79H12v3.39h5.81c-.24 1.18-.89 2.19-1.88 2.86v2.21h2.88c1.7-1.57 2.68-3.88 2.68-6.67z"/>
+                                <path fill="#34A853" d="M12 23c3.15 0 5.8-1.04 7.73-2.82l-2.88-2.21c-.81.54-1.85.86-2.88.86-2.43 0-4.48-1.64-5.22-3.84H3.85v2.32c1.9 3.77 5.76 6.3 10.15 6.3z"/>
+                                <path fill="#FBBC05" d="M6.78 14.17c-.15-.47-.23-.97-.23-1.47s.08-1 .23-1.47V8.92H3.85c-.46.91-.72 1.95-.72 3.08s.26 2.17.72 3.08l2.93-2.32z"/>
+                                <path fill="#EA4335" d="M12 5.86c1.72 0 3.25.59 4.47 1.76l2.55-2.55C17.8 2.69 15.08 0 12 0 7.6 0 3.74 2.53 1.85 6.3l2.93 2.32C7.52 7.45 9.57 5.86 12 5.86z"/>
+                                <path fill="none" d="M0 0h24v24H0z"/>
+                            </svg>\`;
+
+
+                const htmlContent = \`
+                    <div>
+                        <!-- Stars -->
+                        <div style="display:flex; align-items:center; gap: 0.125rem; margin-bottom: 0.5rem;">
+                            \${renderStars(rating)}
+                        </div>
+                        
+                        <!-- Review Text -->
+                        <p style="color: #4b5563; font-size: 0.875rem; margin-bottom: 1rem;">
+                            \${truncatedText}
+                            \${fullText.length > truncatedText.length && fullText.trim() !== 'Tidak ada teks ulasan.' ? \`<a href="\${review.profile_url || '#'}" style="color:#3b82f6; text-decoration: none; font-size: 0.75rem; margin-left: 0.25rem; font-weight: 600;">Read more</a>\` : ''}
+                        </p>
+                    </div>
+
+                    <!-- Footer / Author Info -->
+                    <div>
+                        <div style="display:flex; align-items:center; gap: 0.75rem; margin-bottom: 0.75rem; margin-top: 1rem;">
+                            <!-- Profile Image or Initial -->
+                            \${review.profile_image
+                                ? \`<img src="\${review.profile_image}" onerror="handleImageError(this, '\${initialStyle.bgColor}', '\${initialStyle.initial}')" alt="\${review.author}" style="width: 2rem; height: 2rem; border-radius: 9999px; object-fit: cover;">\`
+                                : \`<span style="background-color:\${initialStyle.bgColor}; color:#FFFFFF; display:flex; align-items:center; justify-content:center; width: 2rem; height: 2rem; border-radius: 9999px; font-weight: 600; font-size: 0.875rem;">\${initialStyle.initial}</span>\`
+                            }
+                            
+                            <!-- Name and Time -->
+                            <div style="font-size: 0.875rem;">
+                                <span style="font-weight: 500; color: #1f2937;">\${review.author || 'Anonim'}</span>
+                                <span style="font-size: 0.75rem; color: #6b7280; display: block;">\${review.time_posted || 'Baru saja'}</span>
+                            </div>
+                        </div>
+
+                        <!-- Posted on Google Badge -->
+                        <div style="display:flex; align-items:center; font-size: 0.75rem; color: #6b7280; margin-top: 0.5rem;">
+                            \${googleIcon}
+                            Posted on Google
+                        </div>
+                    </div>
+                \`;
+                card.innerHTML = htmlContent;
+                container.appendChild(card);
+            });
+            
+            // Logika Carousel (ditempatkan di dalam function agar variabelnya lokal)
+            let cardWidthEmbed = 0;
+            let scrollTimeoutEmbed;
+            
+            function initCarouselEmbed() {
+                // ... (Logika initCarousel di sini) ...
+                const firstCardEmbed = container.querySelector('div');
+                if (firstCardEmbed) { cardWidthEmbed = firstCardEmbed.offsetWidth + 16; }
+
+                prevBtn.style.pointerEvents = 'none';
+                prevBtn.style.opacity = '0';
+                nextBtn.style.opacity = '1'; 
+
+                prevBtn.addEventListener('click', () => scrollCarouselEmbed(-1));
+                nextBtn.addEventListener('click', () => scrollCarouselEmbed(1));
+                container.addEventListener('scroll', updateDotsOnScrollEmbed);
+                
+                renderDotsEmbed(embedReviewData.length);
+                updateDotsOnScrollEmbed();
+            }
+
+            function scrollCarouselEmbed(direction) {
+                if (cardWidthEmbed === 0) return;
+                container.scrollLeft += direction * cardWidthEmbed;
+                clearTimeout(scrollTimeoutEmbed);
+                scrollTimeoutEmbed = setTimeout(updateDotsOnScrollEmbed, 300);
+            }
+
+            function renderDotsEmbed(count) {
+                dotsContainer.innerHTML = '';
+                if (count <= 1) return;
+                for (let i = 0; i < count; i++) {
+                    const dot = document.createElement('span');
+                    dot.style.cssText = 'width: 0.5rem; height: 0.5rem; border-radius: 9999px; background-color: #9ca3af; transition: background-color 0.3s; cursor: pointer;';
+                    dot.dataset.index = i;
+                    dot.addEventListener('click', () => { container.scrollLeft = i * cardWidthEmbed; updateDotsEmbed(i); });
+                    dotsContainer.appendChild(dot);
+                }
+            }
+
+            function updateDotsEmbed(activeIndex) {
+                document.querySelectorAll('#dots-container-embed span').forEach((dot, index) => {
+                    dot.style.backgroundColor = index === activeIndex ? '#1f2937' : '#9ca3af';
+                });
+            }
+
+            function updateDotsOnScrollEmbed() {
+                if (cardWidthEmbed === 0) return;
+                const scrollLeft = container.scrollLeft;
+                const maxScrollLeft = container.scrollWidth - container.clientWidth;
+                const activeIndex = Math.round(scrollLeft / cardWidthEmbed);
+
+                updateDotsEmbed(activeIndex);
+                
+                prevBtn.style.opacity = scrollLeft > 10 ? '1' : '0';
+                prevBtn.style.pointerEvents = scrollLeft > 10 ? 'auto' : 'none';
+
+                nextBtn.style.opacity = scrollLeft < maxScrollLeft - 10 ? '1' : '0';
+                nextBtn.style.pointerEvents = scrollLeft < maxScrollLeft - 10 ? 'auto' : 'none';
+            }
+            
+            initCarouselEmbed();
+        }
+        
+        // Memastikan rendering berjalan setelah DOM dimuat
+        document.addEventListener('DOMContentLoaded', renderReviewsEmbed);
+
+<\/script>
+<!-- Review Carousel Embed Code End -->
+            `;
+
+            return embedHtml;
+        }
+
+
+        // --- CAROUSEL LOGIC (LIVE PREVIEW SECTION 2) ---
+
+        const container = document.getElementById('carousel-container');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const dotsContainer = document.getElementById('dots-container');
+        const carouselPlaceholder = document.getElementById('carousel-placeholder');
+
+
+        let scrollTimeout;
+        let cardWidth = 0;
+        
+        function renderStars(rating) {
+            let stars = '';
+            // Path bintang solid yang baru: lebih penuh dan modern
+            const solidStarPath = 'M12 2.163l3.328 6.772 7.456 1.082-5.394 5.263 1.278 7.447L12 18.017l-6.668 3.511 1.278-7.447L1.216 9.947l7.456-1.082L12 2.163z';
+
+            for (let i = 0; i < 5; i++) {
+                if (i < rating) {
+                    // Bintang Penuh (menggunakan viewBox 24 24 yang lebih robust)
+                    stars += `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-yellow-500 fill-current" viewBox="0 0 24 24" fill="currentColor">
+                                <path fill-rule="evenodd" d="${solidStarPath}" clip-rule="evenodd" />
+                            </svg>`;
+                }
+            }
+            return stars;
+        }
+
+        // Fungsi untuk menghasilkan warna unik berdasarkan karakter pertama nama
+        function getInitialStyle(author) {
+            const initial = author.trim().toUpperCase().charAt(0);
+            const charCode = initial.charCodeAt(0);
+            // Pilih warna berdasarkan modulo 4 untuk mendapatkan indeks warna
+            const colorIndex = charCode % initialColors.length; 
+            const bgColor = initialColors[colorIndex];
+            
+            return {
+                initial: initial,
+                bgColor: bgColor
+            };
+        }
+
+        // Fungsi utama untuk merender carousel (menerima data dinamis)
+        function renderReviews(data) {
+            container.innerHTML = '';
+            
+            // Tampilkan placeholder jika data kosong atau mode bukan JSON
+            if (!data || data.length === 0 || currentMode !== 'json') {
+                container.innerHTML = `<p id="carousel-placeholder" class="text-gray-500 p-4">Masukkan data ulasan dalam format JSON di atas untuk melihat pratinjau di sini.</p>`;
+                dotsContainer.innerHTML = '';
+                prevBtn.style.opacity = '0';
+                nextBtn.style.opacity = '0';
+                prevBtn.style.pointerEvents = 'none';
+                nextBtn.style.pointerEvents = 'none';
+                return;
+            }
+
+            // Sembunyikan placeholder
+            prevBtn.style.opacity = '0';
+            nextBtn.style.opacity = '0';
+
+            data.forEach(review => {
+                const initialStyle = getInitialStyle(review.author || 'User');
+                
+                const card = document.createElement('div');
+                card.className = 'review-card bg-white p-5 rounded-xl border border-gray-200 shadow-md flex flex-col justify-between transition-shadow hover:shadow-lg';
+
+                // Menggunakan properti yang ada atau fallback
+                const truncatedText = review.review_text_truncated || review.review_text_full || 'Tidak ada teks ulasan.';
+                const fullText = review.review_text_full || truncatedText;
+                const rating = review.rating_stars || 5;
+
+                // Inline SVG untuk logo Google (untuk konsistensi)
+                const googleIcon = `<svg class="w-4 h-4 mr-1" viewBox="0 0 533.5 544.3" xmlns="http://www.w3.org/2000/svg">
+    <title>Google G Logo</title>
+    <path fill="#4285F4" d="M492.1 278.4c0-18.7-1.5-37-4.7-54.7H269.4v103.8h138.3c-5.8 32.5-23.7 59.9-49.9 78.6v66.1h85.3c50.3-46.1 79.5-115.1 79.5-193.8z"/>
+    <path fill="#34A853" d="M269.4 544.3c73.9 0 136.2-24.3 181.7-66.1l-85.3-66.1c-25 16.7-57 26.6-96.3 26.6-74.4 0-137.9-50-160.3-117.3H26.9v68.5c46.7 92.2 147.2 153.1 242.5 153.1z"/>
+    <path fill="#FBBC05" d="M109.1 331.3c-5.2-16.7-8.1-34.4-8.1-52.9s2.9-36.2 8.1-52.9V157H26.9c-10.7 20.9-16.8 44.5-16.8 69.5s6.1 48.6 16.8 69.5l82.2 65.3z"/>
+    <path fill="#EA4335" d="M269.4 109.1c41.3 0 78.4 14.1 107.5 41.5l74.9-72.8c-46.7-43.2-108.5-67.7-182.4-67.7-95.3 0-195.8 60.9-242.5 153.1l82.2 65.3c22.4-67.3 85.9-117.3 160.3-117.3z"/>
+</svg>`;
+
+
+                const htmlContent = `
+                    <div>
+                        <!-- Stars -->
+                        <div class="flex items-center space-x-0.5 mb-2">
+                            ${renderStars(rating)}
+                        </div>
+                        
+                        <!-- Review Text -->
+                        <p class="text-gray-700 text-sm mb-4">
+                            ${truncatedText}
+                            ${fullText.length > truncatedText.length && fullText.trim() !== 'Tidak ada teks ulasan.' ? `<a href="${review.profile_url || '#'}" class="text-blue-500 hover:text-blue-700 text-xs ml-1 font-semibold">Read more</a>` : ''}
+                        </p>
+                    </div>
+
+                    <!-- Footer / Author Info -->
+                    <div>
+                        <div class="flex items-center space-x-3 mb-3 mt-4">
+                            <!-- Profile Image or Initial -->
+                            ${review.profile_image
+                                ? `<img src="${review.profile_image}" onerror="handleImageError(this, '${initialStyle.bgColor}', '${initialStyle.initial}')" alt="${review.author}" class="w-8 h-8 rounded-full object-cover">`
+                                : `<span style="background-color:${initialStyle.bgColor}; color:#FFFFFF;" class="flex items-center justify-center w-8 h-8 rounded-full font-semibold text-sm">${initialStyle.initial}</span>`
+                            }
+                            
+                            <!-- Name and Time -->
+                            <div class="text-sm">
+                                <span class="font-medium text-gray-800">${review.author || 'Anonim'}</span>
+                                <span class="text-xs text-gray-500 block">${review.time_posted || 'Baru saja'}</span>
+                            </div>
+                        </div>
+
+                        <!-- Posted on Google Badge -->
+                        <div class="flex items-center text-xs text-gray-500 mt-2">
+                            ${googleIcon}
+                            Posted on Google
+                        </div>
+                    </div>
+                `;
+                card.innerHTML = htmlContent;
+                container.appendChild(card);
+            });
+            // Hanya inisialisasi carousel jika ada data
+            if (data.length > 0) {
+                 initCarousel(data.length);
+            }
+        }
+
+        // Mengubah initCarousel untuk menerima total item
+        function initCarousel(totalItems) {
+            // Reset scroll position
+            container.scrollLeft = 0;
+
+            const firstCard = container.querySelector('.review-card');
+            if (firstCard) {
+                // Mendapatkan lebar card pertama + gap 16px (space-x-4)
+                cardWidth = firstCard.offsetWidth + 16;
+            }
+
+            // Hapus listener lama sebelum menambahkan yang baru
+            prevBtn.removeEventListener('click', () => scrollCarousel(-1));
+            nextBtn.removeEventListener('click', () => scrollCarousel(1));
+            container.removeEventListener('scroll', updateDotsOnScroll);
+
+            prevBtn.addEventListener('click', () => scrollCarousel(-1));
+            nextBtn.addEventListener('click', () => scrollCarousel(1));
+            container.addEventListener('scroll', updateDotsOnScroll);
+
+            renderDots(totalItems);
+            updateDotsOnScroll();
+        }
+
+        function scrollCarousel(direction) {
+            if (cardWidth === 0) return;
+            const scrollDistance = cardWidth; 
+            container.scrollLeft += direction * scrollDistance;
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(updateDotsOnScroll, 300);
+        }
+
+        function renderDots(count) {
+            dotsContainer.innerHTML = '';
+            if (count <= 1) return;
+
+            for (let i = 0; i < count; i++) {
+                const dot = document.createElement('span');
+                dot.className = 'dot w-2 h-2 rounded-full bg-gray-400 transition-colors duration-300 cursor-pointer';
+                dot.dataset.index = i;
+                dot.addEventListener('click', () => {
+                    container.scrollLeft = i * cardWidth;
+                    updateDots(i);
+                });
+                dotsContainer.appendChild(dot);
+            }
+        }
+
+        function updateDots(activeIndex) {
+            document.querySelectorAll('.dot').forEach((dot, index) => {
+                dot.classList.remove('bg-gray-800');
+                dot.classList.add('bg-gray-400');
+                if (index === activeIndex) {
+                    dot.classList.remove('bg-gray-400');
+                    dot.classList.add('bg-gray-800');
+                }
+            });
+        }
+
+        function updateDotsOnScroll() {
+            if (cardWidth === 0) return;
+            const scrollLeft = container.scrollLeft;
+            const activeIndex = Math.round(scrollLeft / cardWidth);
+
+            updateDots(activeIndex);
+            updateNavigationButtons(scrollLeft);
+        }
+
+        function updateNavigationButtons(scrollLeft) {
+            // Tampilkan panah prev jika scroll sudah melewati posisi awal (misal > 10px)
+            prevBtn.style.opacity = scrollLeft > 10 ? '1' : '0.5';
+            prevBtn.style.pointerEvents = scrollLeft > 10 ? 'auto' : 'none';
+
+            const maxScrollLeft = container.scrollWidth - container.clientWidth;
+            
+            // Tampilkan panah next jika belum mencapai batas akhir (margin error 10px)
+            nextBtn.style.opacity = scrollLeft < maxScrollLeft - 10 ? '1' : '0.5';
+            nextBtn.style.pointerEvents = scrollLeft < maxScrollLeft - 10 ? 'auto' : 'none';
+        }
+        
+        // --- Initialization ---
+        window.onload = () => {
+            // Penundaan 100ms untuk mengatasi masalah timing pada lingkungan editor online
+            setTimeout(() => {
+                setMode('json');
+            }, 100); 
+        };
+    </script>
+</body>
+</html>
